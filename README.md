@@ -10,9 +10,9 @@ This is a port of Girinoscope arduino implementation to STM32duino (libmaple cor
 
 ### Build
 
-- build the sketch GirinoSTM32F103maplemini.cpp using the 
+- build the sketch GirinoSTM32F103maplemini.ino using the 
 [arduino IDE](https://www.arduino.cc/en/Main/Software)
-- the core needs to be [STM32duino libmaple core github](https://github.com/rogerclarkmelbourne/Arduino_STM32) 
+- the core needs to be [STM32duino libmaple core](https://github.com/rogerclarkmelbourne/Arduino_STM32) 
 - and for the [maple mini board](https://wiki.stm32duino.com/index.php?title=Maple_Mini)  
 [leaflabs](https://www.leaflabs.com/maple)  
 [maple mini on leaflabs](http://docs.leaflabs.com/static.leaflabs.com/pub/leaflabs/maple-docs/0.0.12/hardware/maple-mini.html)
