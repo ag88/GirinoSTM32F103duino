@@ -1,6 +1,6 @@
-## Girinoscope ported to STM32duino (libmaple core) stm32f103 maple mini
+## Girinoscope ported to STM32duino (libmaple core) stm32f103 maple mini or blue pill
 
-This is a port of Girinoscope arduino implementation to STM32duino (libmaple core) for stm32f103 maple mini 
+This is a port of Girinoscope arduino implementation to STM32duino (libmaple core) for stm32f103 maple mini or blue pill
 
 ### References / credits
 - [Girino instructable](https://www.instructables.com/id/Girino-Fast-Arduino-Oscilloscope/) 
@@ -14,8 +14,9 @@ This is a port of Girinoscope arduino implementation to STM32duino (libmaple cor
 [arduino IDE](https://www.arduino.cc/en/Main/Software)
 - the core needs to be [STM32duino libmaple core](https://github.com/rogerclarkmelbourne/Arduino_STM32) 
 - and for the [maple mini board](https://wiki.stm32duino.com/index.php?title=Maple_Mini)  
-[leaflabs](https://www.leaflabs.com/maple)  
+[leaflabs](https://www.leaflabs.com/maple) 
 [maple mini on leaflabs](http://docs.leaflabs.com/static.leaflabs.com/pub/leaflabs/maple-docs/0.0.12/hardware/maple-mini.html)
+- or blue pill (STM32F103 generic board)
 
 
 ### Use
