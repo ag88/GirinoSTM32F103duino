@@ -39,4 +39,4 @@ patch PA1 to PA0 for a test signal
   * first connect the maple mini with Girino stm32duino flashed/installed
   * then start the java [Girinoscope front end](https://github.com/Chatanga/Girinoscope) and connect to it
 
-![screen print](screen_print1.png "screen print")
+![screen print](screen_print2.png "screen print")
