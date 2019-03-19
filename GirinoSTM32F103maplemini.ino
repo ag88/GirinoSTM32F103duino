@@ -69,7 +69,7 @@ void setup (void) {		// Setup of the microcontroller
 	dshow("# setup()");
 
 	// setup timer 2 to generate test signals, comment this if not required
-	//initTesttimer();
+	initTesttimer();
 
 	//Adc timer is used to drive the ADC sampling
 	initAdctimer();
@@ -92,6 +92,7 @@ void setup (void) {		// Setup of the microcontroller
 	interrupts();
 
 	//initPins();
+	pinMode(errorPin, OUTPUT);
 	initADC(ADC_CHANNEL);
 
 	//initAnalogComparator();
@@ -286,22 +287,34 @@ void printData(uint8_t *buffer, int offset, int size) {
 
 
 void initTesttimer(void) {
+
+
 	Timer2.pause();
+	Timer2.setPrescaleFactor(1); //36mhz
+	//Timer2.setChannel2Mode(TIMER_OUTPUT_COMPARE);
+	timer_oc_set_mode(TIMER2,TIMER_CH2,TIMER_OC_MODE_TOGGLE,0);
+	timer_cc_enable(TIMER2, TIMER_CH2);
+
 	Timer2.setPeriod(1000); // 1khz
-	Timer2.setChannel1Mode(TIMER_OUTPUT_COMPARE);
 	Timer2.setCompare(TIMER_CH2,1);
+
+	//Timer 2 Channel 2 timer output is on PA1
+	//setup pin PA1 for alt function output
+	gpio_set_mode(GPIOA, 1, GPIO_AF_OUTPUT_PP);
+
 	// start the timer
 	Timer2.refresh();
 	Timer2.resume();
-	//timer2.attachCompare1Interrupt(handler2);
+	//Timer2.attachCompare2Interrupt(timer2handle);
+
 }
+
 
 void initAdctimer(void) {
 	Timer1.pause();
 	Timer1.setPrescaleFactor(1); //72mhz
 	Timer1.setPeriod(500); // 500us, 2khz
 	Timer1.setChannel1Mode(TIMER_OUTPUT_COMPARE);
-	//TIMER1->regs.adv->EGR |= 0b00000010; //generate CC1 event
 	Timer1.attachCompare1Interrupt(adctimerhandle);
 	//Timer1.setCompare(TIMER_CH1,1);
 	//Timer1.refresh();
@@ -341,13 +354,13 @@ void adcconvhandle(void) {
 
 	}
 
-	// original: Girino commets
+	// original Girino comments:
 	// When ADCL is read, the ADC Data Register is not updated until ADCH
 	// is read. Consequently, if the result is left adjusted and no more
 	// than 8-bit precision is required, it is sufficient to read ADCH.
 	// Otherwise, ADCL must be read first, then ADCH.
-	// Girino stm32duino comments
-	// stm32f103 has a 12 bits adc, the default Girino interrace use 8 bits
+	// Girino stm32duino comments:
+	// stm32f103 has a 12 bits adc, the default Girino interface use 8 bits
 	// hence we use the higher order 8 bits of the 12 bits from stm32f103 adc
 
 	ADCBuffer[ADCCounter] = (data >> 4) & 0xff;
@@ -382,11 +395,22 @@ void triggered()
 }
 
 
-
+/**
+ * @brief initialise the ADC channel and setup the pin
+ *
+ * @param int8_t channel
+ * 		  take note of the ADC channel to pin map
+ * 		  see specs on datasheet
+ * 		  https://www.st.com/en/microcontrollers-microprocessors/stm32f103cb.html
+ * 		  channel 0-7 : PA0-PA7
+ * 		  channel 8-9 : PB0-PB1
+ * 		  channel 10-15 : PC0-PC5
+ *
+ */
 void initADC(int8_t channel) {
 
 	//adc_init(ADC1);
-	//this sample rate only determines how long stm32 samples each inputs,
+	//this sample time only determines how long stm32 samples each inputs,
 	//it does not affect the sample rate which is driven by the timer
 	//this is using ADC_SMPR_7_5 adc clocks per sample (it takes 14 adc cycles for one conversion)
 	//if this is too slow, change it to ADC_SMPR_1_5, sampling quality may become worse
@@ -401,6 +425,33 @@ void initADC(int8_t channel) {
 	adc_attach_interrupt(ADC1, ADC_EOC, adcconvhandle);
 	adc_enable(ADC1);
 
+	//configure the input pin
+	switch(channel) {
+	case 0:
+	case 1:
+	case 2:
+	case 3:
+	case 4:
+	case 5:
+	case 6:
+	case 7:
+		gpio_set_mode(GPIOA, channel, GPIO_INPUT_ANALOG);
+		break;
+	case 8:
+	case 9:
+		gpio_set_mode(GPIOB, channel - 8, GPIO_INPUT_ANALOG);
+		break;
+	case 10:
+	case 11:
+	case 12:
+	case 13:
+	case 14:
+	case 15:
+		gpio_set_mode(GPIOC, channel - 10, GPIO_INPUT_ANALOG);
+		break;
+	default:
+		break;
+	}
 
 }
 

@@ -35,8 +35,9 @@
 
 #define ADCBUFFERSIZE	1280
 
-// PA0 ADC1 channel 1
-#define ADC_CHANNEL		1
+// PA0 ADC1 channel 0
+// take note of the pin map - see comments for initADC()
+#define ADC_CHANNEL		0
 
 #define errorPin	LED_BUILTIN
 #define thresholdPin	3
