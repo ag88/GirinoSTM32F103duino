@@ -55,6 +55,7 @@ void initAdctimer(void);
 
 void adcconvhandle(void);
 void adctimerhandle(void);
+void timer2handle();
 
 //-----------------------------------------------------------------------------
 // Main routines
@@ -296,19 +297,29 @@ void initTesttimer(void) {
 	timer_cc_enable(TIMER2, TIMER_CH2);
 
 	Timer2.setPeriod(1000); // 1khz
-	Timer2.setCompare(TIMER_CH2,1);
+	Timer2.setCompare(TIMER_CH2,Timer2.getOverflow());
 
 	//Timer 2 Channel 2 timer output is on PA1
 	//setup pin PA1 for alt function output
 	gpio_set_mode(GPIOA, 1, GPIO_AF_OUTPUT_PP);
 
+	Timer2.attachCompare2Interrupt(timer2handle);
+
 	// start the timer
 	Timer2.refresh();
 	Timer2.resume();
-	//Timer2.attachCompare2Interrupt(timer2handle);
 
 }
 
+
+void timer2handle() {
+	uint16_t overflow = Timer2.getOverflow();
+	uint16_t compare = Timer2.getCompare(TIMER_CH2);
+	if(compare == overflow)
+		Timer2.setCompare(TIMER_CH2, overflow >> 1);
+	else
+		Timer2.setCompare(TIMER_CH2, overflow);
+}
 
 void initAdctimer(void) {
 	Timer1.pause();
