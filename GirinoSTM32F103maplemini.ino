@@ -53,7 +53,8 @@ char commandBuffer[COMBUFFERSIZE+1];
 void initTesttimer(void);
 void initAdctimer(void);
 
-void adchandle(void);
+void adcconvhandle(void);
+void adctimerhandle(void);
 
 //-----------------------------------------------------------------------------
 // Main routines
@@ -68,7 +69,7 @@ void setup (void) {		// Setup of the microcontroller
 	dshow("# setup()");
 
 	// setup timer 2 to generate test signals, comment this if not required
-	initTesttimer();
+	//initTesttimer();
 
 	//Adc timer is used to drive the ADC sampling
 	initAdctimer();
@@ -300,17 +301,24 @@ void initAdctimer(void) {
 	Timer1.setPrescaleFactor(1); //72mhz
 	Timer1.setPeriod(500); // 500us, 2khz
 	Timer1.setChannel1Mode(TIMER_OUTPUT_COMPARE);
-	TIMER1->regs.adv->EGR |= 0b00000010; //generate CC1 event
-	Timer1.attachCompare1Interrupt(adchandle);
+	//TIMER1->regs.adv->EGR |= 0b00000010; //generate CC1 event
+	Timer1.attachCompare1Interrupt(adctimerhandle);
 	//Timer1.setCompare(TIMER_CH1,1);
 	//Timer1.refresh();
 	//Timer1.resume();
 
 }
 
-void adchandle(void) {
+void adctimerhandle(void) {
+	//start conversion when called
+	ADC1->regs->CR2 |= ADC_CR2_SWSTART;
+}
 
-	uint16_t data = adc_read(ADC1, 1);
+void adcconvhandle(void) {
+
+	//uint16_t data = adc_read(ADC1, 1);
+	uint16_t data = ADC1->regs->DR;
+	data &= 0xffff;
 
 	if(!wait) {
 		switch (triggerEvent) {
@@ -333,10 +341,15 @@ void adchandle(void) {
 
 	}
 
+	// original: Girino commets
 	// When ADCL is read, the ADC Data Register is not updated until ADCH
 	// is read. Consequently, if the result is left adjusted and no more
 	// than 8-bit precision is required, it is sufficient to read ADCH.
 	// Otherwise, ADCL must be read first, then ADCH.
+	// Girino stm32duino comments
+	// stm32f103 has a 12 bits adc, the default Girino interrace use 8 bits
+	// hence we use the higher order 8 bits of the 12 bits from stm32f103 adc
+
 	ADCBuffer[ADCCounter] = (data >> 4) & 0xff;
 
 	ADCCounter = ( ADCCounter + 1 ) % ADCBUFFERSIZE;
@@ -379,7 +392,15 @@ void initADC(void) {
 	//if this is too slow, change it to ADC_SMPR_1_5, sampling quality may become worse
 	adc_set_sample_rate(ADC1,ADC_SMPR_7_5);
 	adc_calibrate(ADC1);
+	//setup channel 1 for adc
+	adc_set_reg_seqlen(ADC1, 1);
+	ADC1->regs->SQR1 = 0;
+	ADC1->regs->SQR2 = 0;
+	ADC1->regs->SQR3 = 1;
+	//setup end of conversion interrupt
+	adc_attach_interrupt(ADC1, ADC_EOC, adcconvhandle);
 	adc_enable(ADC1);
+
 
 }
 
@@ -537,8 +558,6 @@ void printStatus( void )
 	Serial.println(triggerEvent);
 	Serial.print("Threshold: ");
 	Serial.println(threshold/16);
-	//Serial.print("adctrigger:");
-	//Serial.println(badc?"yes":"no");
 }
 
 
