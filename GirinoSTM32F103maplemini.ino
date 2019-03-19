@@ -92,7 +92,7 @@ void setup (void) {		// Setup of the microcontroller
 	interrupts();
 
 	//initPins();
-	initADC();
+	initADC(ADC_CHANNEL);
 
 	//initAnalogComparator();
 
@@ -383,7 +383,7 @@ void triggered()
 
 
 
-void initADC(void) {
+void initADC(int8_t channel) {
 
 	//adc_init(ADC1);
 	//this sample rate only determines how long stm32 samples each inputs,
@@ -392,11 +392,11 @@ void initADC(void) {
 	//if this is too slow, change it to ADC_SMPR_1_5, sampling quality may become worse
 	adc_set_sample_rate(ADC1,ADC_SMPR_7_5);
 	adc_calibrate(ADC1);
-	//setup channel 1 for adc
+	//setup channel for adc
 	adc_set_reg_seqlen(ADC1, 1);
 	ADC1->regs->SQR1 = 0;
 	ADC1->regs->SQR2 = 0;
-	ADC1->regs->SQR3 = 1;
+	ADC1->regs->SQR3 = channel & 0x1f;
 	//setup end of conversion interrupt
 	adc_attach_interrupt(ADC1, ADC_EOC, adcconvhandle);
 	adc_enable(ADC1);

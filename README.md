@@ -20,7 +20,7 @@ This is a port of Girinoscope arduino implementation to STM32duino (libmaple cor
 
 ### Use
 
-- The ADC (oscilloscope) input is from pin PA0 ADC channel 1 (max 3.3v)  
+- The ADC (oscilloscope) input is from pin PA0 ADC 1 channel 1 (max 3.3v)  
 - Timer 2 is setup on PA1 to generate a 1khz signal, hence you could 
 patch PA1 to PA0 for a test signal
 - The call to setup timer 2 is in setup(), comment the call to initTesttimer() if it is not required  

@@ -35,7 +35,9 @@
 
 #define ADCBUFFERSIZE	1280
 
-#define ADCPIN		0
+// PA0 ADC1 channel 1
+#define ADC_CHANNEL		1
+
 #define errorPin	LED_BUILTIN
 #define thresholdPin	3
 
@@ -67,7 +69,7 @@
 // Function Prototypes
 //-----------------------------------------------------------------------------
 void initPins(void);
-void initADC(void);
+void initADC(int8_t channel);
 void initAnalogComparator(void);
 
 void startADC( void );
