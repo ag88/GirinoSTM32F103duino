@@ -33,10 +33,28 @@ patch PA1 to PA0 for a test signal
   * i.e. 8 bits signals (yup stm32f103 can do 12 bits), but java frondend is for 8 bits data x 1280 samples per frame. the higher order 8 bits is sent  
   * there is no comparator on stm32f103c{8,b}, signal triggering is done in software
   * sample rates are made to conform to girino (frontend) sample rates 
+- voltage translations  
+   girino maps the range to 0 to 255 - -2.5 to 2.5v, so 0v is around 128    
+   stm32 adc maps the range range 0 to 4096 - 0v to 3.3v  
+   there are 3 defines provided in Girino.h, uncomment only one of the voltage translations defines  
+```
+// voltage translations stm to girino select only one of this
+// note girino maps the range to 0 to 255 - -2.5 to 2.5v, so 0v is around 128
+// stm32 adc maps the range range 0 to 4096 - 0v to 3.3v
+//
+// use higher order 8 bits from 12 bits of adc (voltage scale looks 'incorrect')
+#define VTRANS8BIT
+// use only higher order 7 bits and translate 0 to 127, so 255 ~ 3.3v (coarse) !
+//#define VTRANS7BIT
+// use only higher order 7 bits and translate 0 to 127, make 2.5 to 3.3v
+// translations so 255 ~ 2.5v (coarse, slow and possibly inaccurate)
+// but voltage scale looks 'correct' !
+//#define VTRANS7BIT3325
+```
 - Currently this is a very draft release (just about works, and i'm not sure if anything is incorrect). 
 - stm32f103 is possibly capable of much higher sample rates, those features are currently not implemented, the codes (for now) is made simple and based on software polling the ADC after the software receive a timer interrupt. with this approach, there are real limits to how far sampling can go
 - it interfaces over usb-serial, hence
   * first connect the maple mini with Girino stm32duino flashed/installed
   * then start the java [Girinoscope front end](https://github.com/Chatanga/Girinoscope) and connect to it
 
-![screen print](screen_print2.png "screen print")
+![screen print](screen_print1.png "screen print")

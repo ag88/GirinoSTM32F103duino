@@ -27,6 +27,7 @@
 
 #include "Girino.h"
 
+
 //-----------------------------------------------------------------------------
 // Global Constants
 //-----------------------------------------------------------------------------
@@ -63,6 +64,7 @@ void adctimerhandle(void);
 // The setup function initializes registers.
 //
 void setup (void) {		// Setup of the microcontroller
+
 	// Open serial port with a baud rate of BAUDRATE b/s
 	Serial.begin(BAUDRATE);
 
@@ -86,7 +88,7 @@ void setup (void) {		// Setup of the microcontroller
 	prescaler = 128;
 	triggerEvent = 3;
 
-	threshold = 127 * 4096 / 256;
+	threshold = vgirinotostm(127);
 
 	// Activate interrupts
 	interrupts();
@@ -255,7 +257,7 @@ void loop (void) {
 				Serial.print("Setting threshold to: ");
 				Serial.println(newT);
 
-				threshold = newT * 4096 / 256;
+				threshold = vgirinotostm(newT);
 
 				}
 				break;
@@ -364,7 +366,7 @@ void adcconvhandle(void) {
 	// stm32f103 has a 12 bits adc, the default Girino interface use 8 bits
 	// hence we use the higher order 8 bits of the 12 bits from stm32f103 adc
 
-	ADCBuffer[ADCCounter] = (data >> 4) & 0xff;
+	ADCBuffer[ADCCounter] = vstmtogirino(data);
 
 	ADCCounter = ( ADCCounter + 1 ) % ADCBUFFERSIZE;
 
@@ -609,9 +611,38 @@ void printStatus( void )
 	Serial.print("Trigger event: ");
 	Serial.println(triggerEvent);
 	Serial.print("Threshold: ");
-	Serial.println(threshold/16);
+	Serial.println(vstmtogirino(threshold));
 }
 
+uint8_t vstmtogirino(uint16_t volt) {
+	int vret;
+#if defined(VTRANS7BIT3325)
+	vret = volt >> 5;
+	vret = vret * 330 / 250;
+	vret += 127;
+	vret = ( vret > 255 ? 255 : vret );
+#elif defined(VTRANS7BIT)
+	vret = volt >> 5;
+	vret += 127;
+#else	// VTRANS8BIT default
+	vret = volt >> 4; // divide by 4096 / 256 = 16
+#endif
+	return vret & 0xff;
+}
 
+uint16_t vgirinotostm(uint8_t volt) {
+	int vret;
+#if defined(VTRANS7BIT3325)
+	vret = volt - 127;
+	vret = vret * 250 / 330;
+	vret = vret << 5;
+#elif defined(VTRANS7BIT)
+	vret = volt - 127;
+	vret = vret << 5;
+#else // VTRANS8BIT default
+	 vret = volt << 4; // multiply by 4096 / 256 = 16
+#endif
+	return vret & 0xffff;
+}
 
 

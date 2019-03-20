@@ -46,6 +46,19 @@
 #define COMMANDDELAY	10	// ms to wait for the filling of Serial buffer
 #define COMBUFFERSIZE	3	// Size of buffer for incoming numbers
 
+// voltage translations stm to girino select only one of this
+// note girino maps the range to 0 to 255 - -2.5 to 2.5v, so 0v is around 128
+// stm32 adc maps the range range 0 to 4096 - 0v to 3.3v
+//
+// use higher order 8 bits from 12 bits of adc (voltage scale looks 'incorrect')
+#define VTRANS8BIT
+// use only higher order 7 bits and translate 0 to 127, so 255 ~ 3.3v (coarse) !
+//#define VTRANS7BIT
+// use only higher order 7 bits and translate 0 to 127, make 2.5 to 3.3v
+// translations so 255 ~ 2.5v (coarse, slow and possibly inaccurate)
+// but voltage scale looks 'correct' !
+//#define VTRANS7BIT3325
+
 #if DEBUG == 1
 	#define dprint(expression) Serial.print("# "); Serial.print( #expression ); Serial.print( ": " ); Serial.println( expression )
 	#define dshow(expression) Serial.println( expression )
@@ -83,6 +96,8 @@ void setVoltageReference( uint8_t reference );
 void setTriggerEvent( uint8_t event );
 void setSamprate(int samprate);
 void triggered(void);
+uint8_t vstmtogirino(uint16_t volt);
+uint16_t vgirinotostm(uint8_t volt);
 
 void error (void);
 // Fills the given buffer with bufferSize chars from a Serial object
