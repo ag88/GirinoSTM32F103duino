@@ -31,30 +31,76 @@ patch PA1 to PA0 for a test signal
 ```
 - For now this is a 'Girino compatible' release:  
   * i.e. 8 bits signals (yup stm32f103 can do 12 bits), but java frondend is for 8 bits data x 1280 samples per frame. the higher order 8 bits is sent  
-  * there is no comparator on stm32f103c{8,b}, signal triggering is done in software
+  * there is no comparator on stm32f103c{8,b}, signal triggering is done in software 
+  (accelerated by the hardware 'analog watchdog' on stm32f103)     
   * sample rates are made to conform to girino (frontend) sample rates 
-- voltage translations  
-   girino maps the range to 0 to 255 - -2.5 to 2.5v, so 0v is around 128    
-   stm32 adc maps the range range 0 to 4096 - 0v to 3.3v  
-   there are 3 defines provided in Girino.h, uncomment only one of the voltage translations defines  
-```
-// voltage translations stm to girino select only one of this
-// note girino maps the range to 0 to 255 - -2.5 to 2.5v, so 0v is around 128
-// stm32 adc maps the range range 0 to 4096 - 0v to 3.3v
-//
-// use higher order 8 bits from 12 bits of adc (voltage scale looks 'incorrect')
-#define VTRANS8BIT
-// use only higher order 7 bits and translate 0 to 127, so 255 ~ 3.3v (coarse) !
-//#define VTRANS7BIT
-// use only higher order 7 bits and translate 0 to 127, make 2.5 to 3.3v
-// translations so 255 ~ 2.5v (coarse, slow and possibly inaccurate)
-// but voltage scale looks 'correct' !
-//#define VTRANS7BIT3325
-```
-- Currently this is a very draft release (just about works, and i'm not sure if anything is incorrect). 
-- stm32f103 is possibly capable of much higher sample rates, those features are currently not implemented, the codes (for now) is made simple and based on software polling the ADC after the software receive a timer interrupt. with this approach, there are real limits to how far sampling can go
+
 - it interfaces over usb-serial, hence
   * first connect the maple mini with Girino stm32duino flashed/installed
   * then start the java [Girinoscope front end](https://github.com/Chatanga/Girinoscope) and connect to it
 
 ![screen print](screen_print1.png "screen print")
+
+- voltage scales  
+   Girino maps the range to 0 to 255 - -2.5 to 2.5v, so 0v is around 128.    
+   STM32 ADC maps the range range 0 to 4096 - 0v to 3.3v. 
+   To change the voltage scale mapping on the menu select * Display > Change Signal Intepretation *
+
+![screen print](v_intep.png "voltage intepretation")
+
+- sample rates:  
+  Efforts has been made to use stm32f103 hardware features such as DMA and 'analog watch dog'.
+  Some basic tests show that it is able to achieve the sample rates of 307.7 K samples per sec
+  (in fact better than that).  However, it is observed that devices in the wild varies in
+  performance especially as relates to sample rates, even if they are of the same part numbers.
+  i.e. the signal/graph you observe is possibly incorrect/wrong, especially at the higher
+  sample rates.  
+  The author and all relevant contributors do not provide you with any guarantee or assurance
+  of the functionality and capabilities of using this and related software/firmware. i.e. the
+  signal you observe is possibly wrong. you should perform field tests and calibration (e.g.
+  using known signals) and determine for yourself the validity of the signals/graphs etc.
+
+### Versions
+
+- Girino_stm32f103mm_v2_compat is the current release  
+  accel girino compat v2 using DMA and AWD, beta
+
+  This is an accelerated girino compat release, beta.  
+  Near complete re-write. Now girino stm32duino v2 is a significantly accelerated using 
+  stm32 hardware DMA and analog watchdog
+
+  Fixed issue related to the setting of wait duration
+
+  It now has no issues displaying signals the highest sample rates
+  currently of Girinoscope 307.7 k samples per sec
+
+  Did further enhancement and achieved 500 k samples per sec - limit
+  (this 'featuree' is not obserable on the java frontend in compatable mode).  
+  internally it is already doing a full 12 bits ADC buffers
+  8 bits interfaced to Girinoscope for compatibility
+
+  This is a beta release
+
+- Girino_stm32f103mm_v1_compat is the initial release
+  
+  This is an original port / release, triggers is done in software
+  hooking the ADC end-of-conversion interrupt.
+  
+  This proved too slow and this version couldn't do Girinoscope 307.7 k 
+  samples per sec sample rates. THe graphs is incorrect at that sample rate.
+  Lower sample rates works fine.
+  
+
+### Author and credits 
+
+  This port is brought to you by Andrew Goh.
+  The author would like to credit and thank the stm32duino libmaple core (that this is based on) community (Roger, Stevstrong, Victorpv, Ahull, and many many others), [leaflabs](https://www.leaflabs.com/maple) which started the initial libmaple core and created the maple mini .
+  [Girinoscope java app github](https://github.com/Chatanga/Girinoscope)
+  [Girino instructable](https://www.instructables.com/id/Girino-Fast-Arduino-Oscilloscope/)
+  and last but not least stm32 is a pretty cool mcu ;)  
+  
+
+### No warranty
+
+THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.   
+
