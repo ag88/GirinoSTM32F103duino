@@ -1,10 +1,14 @@
 //-----------------------------------------------------------------------------
 // Girino.h
 //-----------------------------------------------------------------------------
-// Copyright 2012 Cristiano Lino Fontana
-//
 // ported to stm32duino libmaple core
-// additions Copyright 2019 Andrew Goh
+// implementation nearly completely re-written
+// different from original release and specifically taylored
+// to stm32f103c{8,b} hardware, only the protocol is left intact
+// Copyright 2019 Andrew Goh
+//
+// Original:
+// Copyright 2012 Cristiano Lino Fontana
 //
 // This file is part of Girino.
 //
@@ -42,20 +46,6 @@
 #define BAUDRATE	115200	// Baud rate of UART in bps
 #define CWAIT	10	// ms timeout waiting for parameter over serial
 #define PLEN	3	// length of the parameter
-
-// voltage translations stm to girino select only one of this
-// note girino maps the range to 0 to 255 - -2.5 to 2.5v, so 0v is around 128
-// stm32 adc maps the range range 0 to 4096 - 0v to 3.3v
-//
-// use higher order 8 bits from 12 bits of adc (voltage scale looks 'incorrect')
-#define VTRANS8BIT
-// use only higher order 7 bits and translate 0 to 127, so 255 ~ 3.3v (coarse) !
-//#define VTRANS7BIT
-// use only higher order 7 bits and translate 0 to 127, make 2.5 to 3.3v
-// translations so 255 ~ 2.5v (coarse, slow and possibly inaccurate)
-// but voltage scale looks 'correct' !
-//#define VTRANS7BIT3325
-
 
 //-----------------------------------------------------------------------------
 // Global Constants

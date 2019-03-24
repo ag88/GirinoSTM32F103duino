@@ -4,8 +4,7 @@
 // ported to stm32duino libmaple core
 // implementation nearly completely re-written
 // different from original release and specifically taylored
-// to stm32f103c{8,b} hardware
-// only the protocol is left intact
+// to stm32f103c{8,b} hardware, only the protocol is left intact
 // Copyright 2019 Andrew Goh
 //
 // Original:
@@ -267,7 +266,7 @@ void adctimerhandle(void) {
 		stopIndex--;
 		if ( stopIndex == 0 )
 		{
-			// Freeze situation
+			// completed coverting the frame
 			// Disable ADC and stop Free Running Conversion Mode
 			stopADC();
 
@@ -483,7 +482,6 @@ void initTesttimer(void) {
 
 	Timer2.pause();
 	Timer2.setPrescaleFactor(1); //36mhz
-	//Timer2.setChannel2Mode(TIMER_OUTPUT_COMPARE);
 	timer_oc_set_mode(TIMER2,TIMER_CH2,TIMER_OC_MODE_PWM_1,0);
 	timer_cc_enable(TIMER2, TIMER_CH2);
 
@@ -525,11 +523,6 @@ void setADCPrescaler( uint8_t prescaler ) {
 
 	int adclk = UNOSYSCLK / prescaler;
 	int samprate = adclk / 13; //13 clock cycles per conversion on uno
-
-	//the time base seemed 1.5 times slower on the girino front end for
-	//307.7khz / 4.2ms sampling
-	//if(prescaler == 4) samprate = 830000; //maple mini
-	//if(prescaler == 4) samprate = 640000; //cs32
 
 	setSamprate(samprate);
 }
@@ -649,33 +642,12 @@ void printStatus( void )
 }
 
 uint8_t vstmtogirino(uint16_t volt) {
-	int vret;
-#if defined(VTRANS7BIT3325)
-	vret = volt >> 5;
-	vret = vret * 330 / 250;
-	vret += 127;
-	vret = ( vret > 255 ? 255 : vret );
-#elif defined(VTRANS7BIT)
-	vret = volt >> 5;
-	vret += 127;
-#else	// VTRANS8BIT default
-	vret = volt >> 4; // divide by 4096 / 256 = 16
-#endif
+	int vret = volt >> 4; // divide by 4096 / 256 = 16
 	return vret & 0xff;
 }
 
 uint16_t vgirinotostm(uint8_t volt) {
-	int vret;
-#if defined(VTRANS7BIT3325)
-	vret = volt - 127;
-	vret = vret * 250 / 330;
-	vret = vret << 5;
-#elif defined(VTRANS7BIT)
-	vret = volt - 127;
-	vret = vret << 5;
-#else // VTRANS8BIT default
-	 vret = volt << 4; // multiply by 4096 / 256 = 16
-#endif
+    int vret = volt << 4; // multiply by 4096 / 256 = 16
 	return vret & 0xffff;
 }
 
