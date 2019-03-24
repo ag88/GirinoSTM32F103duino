@@ -44,7 +44,7 @@ patch PA1 to PA0 for a test signal
 - voltage scales  
    Girino maps the range to 0 to 255 - -2.5 to 2.5v, so 0v is around 128.    
    STM32 ADC maps the range range 0 to 4096 - 0v to 3.3v. 
-   To change the voltage scale mapping on the menu select * Display > Change Signal Intepretation *
+   To change the voltage scale mapping on the menu select *Display > Change Signal Intepretation*
 
 ![screen print](v_intep.png "voltage intepretation")
 
@@ -75,7 +75,7 @@ patch PA1 to PA0 for a test signal
   currently of Girinoscope 307.7 k samples per sec
 
   Did further enhancement and achieved 500 k samples per sec - limit
-  (this 'featuree' is not obserable on the java frontend in compatable mode).  
+  (this 'feature' is not obserable on the java frontend in compatable mode).  
   internally it is already doing a full 12 bits ADC buffers
   8 bits interfaced to Girinoscope for compatibility
 
