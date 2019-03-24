@@ -1,10 +1,15 @@
 //-----------------------------------------------------------------------------
 // Girino.ino
 //-----------------------------------------------------------------------------
-// Copyright 2012 Cristiano Lino Fontana
-//
 // ported to stm32duino libmaple core
-// additions Copyright 2019 Andrew Goh
+// implementation nearly completely re-written
+// different from original release and specifically taylored
+// to stm32f103c{8,b} hardware
+// only the protocol is left intact
+// Copyright 2019 Andrew Goh
+//
+// Original:
+// Copyright 2012 Cristiano Lino Fontana
 //
 // This file is part of Girino.
 //
@@ -25,8 +30,9 @@
 // Includes
 //-----------------------------------------------------------------------------
 
-#include "Girino.h"
 #include <libmaple/dma.h>
+
+#include "Girino.h"
 #include "util_adc.h"
 
 //-----------------------------------------------------------------------------
@@ -37,12 +43,12 @@
 // Global Variables
 //-----------------------------------------------------------------------------
 
-volatile  boolean wait;
+volatile  boolean btriggered;
          uint16_t waitDuration;
 volatile uint16_t stopIndex;
 volatile uint16_t ADCCounter;
          uint16_t ADCBuffer[ADCBUFFERSIZE];
-volatile  boolean freeze;
+volatile  boolean bframedone;
 		  uint8_t errorPin;
 		  boolean bLedOn;
 
@@ -51,16 +57,18 @@ volatile  boolean freeze;
           uint16_t threshold;
 
 
-//volatile boolean bincz;
-
-
-char commandBuffer[COMBUFFERSIZE+1];
+char Param[5];
 
 void initDMA(void);
 void resetDMA(void);
 
 void initTesttimer(void);
 void initAdctimer(void);
+
+boolean bfirsttrig;
+
+void setawdlowthres(uint16_t threshold);
+void setawdhighthres(uint16_t threshold);
 
 void adctimerhandle(void);
 
@@ -75,8 +83,6 @@ void setup (void) {		// Setup of the microcontroller
 	// Open serial port with a baud rate of BAUDRATE b/s
 	Serial.begin(BAUDRATE);
 
-	dshow("# setup()");
-
 	// setup timer 2 to generate test signals, comment this if not required
 	initTesttimer();
 
@@ -85,12 +91,12 @@ void setup (void) {		// Setup of the microcontroller
 
 	// Clear buffers
 	memset( (void *)ADCBuffer, 0, sizeof(ADCBuffer) );
-	memset( (void *)commandBuffer, 0, sizeof(commandBuffer) );
+	memset( (void *)Param, 0, sizeof(Param) );
 	ADCCounter = 0;
-	wait = false;
+	btriggered = false;
 	waitDuration = ADCBUFFERSIZE - 32;
 	stopIndex = -1;
-	freeze = false;
+	bframedone = false;
 
 	prescaler = 128;
 	triggerEvent = 3;
@@ -106,77 +112,52 @@ void setup (void) {		// Setup of the microcontroller
 
 	initADC(ADC_CHANNEL);
 
-	//initAnalogComparator();
-
 	while(!Serial.isConnected());
 
 	Serial.println("Girino ready");
-	//printStatus();
 }
 
 void loop (void) {
-	dprint(ADCCounter);
-	dprint(stopIndex);
-	dprint(wait);
-	dprint(freeze);
-	#if DEBUG == 1
-	Serial.println( ADCSRA, BIN );
-	Serial.println( ADCSRB, BIN );
-	#endif
 
-	// If freeze flag is set, then it is time to send the buffer to the serial port
-	if ( freeze )
+	// If frame is done, then it is time to send the buffer to the serial port
+	if ( bframedone )
 	{
-		dshow("# Frozen");
 
 		printData();
 
-		wait = false;
-		freeze = false;
+		btriggered = false;
+		bframedone = false;
 
 		// Clear buffer
 		memset( (void *)ADCBuffer, 0, sizeof(ADCBuffer) );
 
-		//startADC();
-		// Let the ADC fill the buffer a little bit
-		//delay(1);
-		//startAnalogComparator();
-
-		#if DEBUG == 1
-		delay(3000);
-		#endif
 	}
 
-	if ( Serial.available() > 0 ) {
+	if ( Serial.available() ) {
 		// Read the incoming byte
-		char theChar = Serial.read();
-			// Parse character
-		switch (theChar) {
+		char c = Serial.read();
+		// Parse character
+		switch (c) {
 			case 's':			// 's' for starting ADC conversions
 				//Serial.println("ADC conversions started");
-
 				// Clear buffer
 				memset( (void *)ADCBuffer, 0, sizeof(ADCBuffer) );
 
 				startADC();
-				// Let the ADC fill the buffer a little bit
-				//delay(1);
-				//startAnalogComparator();
 				break;
+
 			case 'S':			// 'S' for stopping ADC conversions
 				//Serial.println("ADC conversions stopped");
-				//stopAnalogComparator();
 				stopADC();
 				break;
-			case 'p':			// 'p' for new prescaler setting
-				{
-				// Wait for COMMANDDELAY ms to be sure that the Serial buffer is filled
-				delay(COMMANDDELAY);
 
-				fillBuffer( commandBuffer, COMBUFFERSIZE );
+			case 'p':			// 'p' for new prescaler setting
+			case 'P':
+				{
+				readParam(PLEN, CWAIT);
 
 				// Convert buffer to integer
-				uint8_t newP = atoi( commandBuffer );
+				uint8_t newP = atoi( Param );
 
 				// Display moving status indicator
 				Serial.print("Setting prescaler to: ");
@@ -187,34 +168,13 @@ void loop (void) {
 				}
 				break;
 
-			case 'P':
-				{
-				// Wait for COMMANDDELAY ms to be sure that the Serial buffer is filled
-				delay(COMMANDDELAY);
-
-				fillBuffer( commandBuffer, COMBUFFERSIZE );
-
-				// Convert buffer to integer
-				int s1 = atoi( commandBuffer );
-
-				// Display moving status indicator
-				Serial.print("Setting prescaler1 to: ");
-				Serial.println(s1);
-
-				int samprate = s1 * 1000;
-				setSamprate(samprate);
-				}
-				break;
 
 			case 'r':			// 'r' for new voltage reference setting
 			case 'R': {
-				// Wait for COMMANDDELAY ms to be sure that the Serial buffer is filled
-				delay(COMMANDDELAY);
-
-				fillBuffer( commandBuffer, COMBUFFERSIZE );
+				readParam(PLEN, CWAIT);
 
 				// Convert buffer to integer
-				uint8_t newR = atoi( commandBuffer );
+				uint8_t newR = atoi( Param );
 
 				// Display moving status indicator
 				Serial.print("Setting voltage reference to: ");
@@ -226,13 +186,10 @@ void loop (void) {
 
 			case 'e':			// 'e' for new trigger event setting
 			case 'E': {
-				// Wait for COMMANDDELAY ms to be sure that the Serial buffer is filled
-				delay(COMMANDDELAY);
-
-				fillBuffer( commandBuffer, COMBUFFERSIZE );
+				readParam(PLEN, CWAIT);
 
 				// Convert buffer to integer
-				uint8_t newE = atoi( commandBuffer );
+				uint8_t newE = atoi( Param );
 
 				// Display moving status indicator
 				Serial.print("Setting trigger event to: ");
@@ -245,31 +202,26 @@ void loop (void) {
 
 			case 'w':			// 'w' for new wait setting
 			case 'W': {
-				// Wait for COMMANDDELAY ms to be sure that the Serial buffer is filled
-				delay(COMMANDDELAY);
-
-				fillBuffer( commandBuffer, COMBUFFERSIZE );
+				readParam(4, CWAIT);
 
 				// Convert buffer to integer
-				uint8_t newW = atoi( commandBuffer );
+				uint16_t newW = atoi( Param );
 
 				// Display moving status indicator
 				Serial.print("Setting waitDuration to: ");
 				Serial.println(newW);
 
-				waitDuration = ADCBUFFERSIZE - newW;
+				waitDuration = newW < ADCBUFFERSIZE ? newW : ADCBUFFERSIZE;
+
 				}
 				break;
 
 			case 't':			// 'w' for new threshold setting
 			case 'T': {
-				// Wait for COMMANDDELAY ms to be sure that the Serial buffer is filled
-				delay(COMMANDDELAY);
-
-				fillBuffer( commandBuffer, COMBUFFERSIZE );
+				readParam(PLEN, CWAIT);
 
 				// Convert buffer to integer
-				uint8_t newT = atoi( commandBuffer );
+				uint8_t newT = atoi( Param );
 
 				// Display moving status indicator
 				Serial.print("Setting threshold to: ");
@@ -288,17 +240,16 @@ void loop (void) {
 			default:
 				// Display error message
 				Serial.print("ERROR: Command not found, it was: ");
-				Serial.println(theChar);
+				Serial.println(c);
 				error();
 		}
 	}
+
 }
 
 void printData(void) {
 	uint16_t *buffer = ADCBuffer;
-	int offset = ADCBUFFERSIZE - dma_get_count(DMA1,DMA_CH1) + 32;
-	if(offset > ADCBUFFERSIZE)
-		offset -= ADCBUFFERSIZE;
+	int offset = ADCBUFFERSIZE - dma_get_count(DMA1,DMA_CH1);
 	int size = ADCBUFFERSIZE;
 	for(int i=offset; i<size ; i++) {
 		Serial.write(vstmtogirino(*(buffer + i)));
@@ -310,10 +261,8 @@ void printData(void) {
 
 
 void adctimerhandle(void) {
-	//if(bincz) digitalWrite(errorPin,LEDON);
-	//bincz = true;
 
-	if ( wait )
+	if ( btriggered )
 	{
 		stopIndex--;
 		if ( stopIndex == 0 )
@@ -322,7 +271,7 @@ void adctimerhandle(void) {
 			// Disable ADC and stop Free Running Conversion Mode
 			stopADC();
 
-			freeze = true;
+			bframedone = true;
 			return;
 		}
 	}
@@ -340,16 +289,29 @@ void triggered()
 	// Turn on errorPin
 	//digitalWrite( BOARD_LED_PIN, HIGH );
 
-	wait = true;
+	if(!bfirsttrig) {
+		bfirsttrig = true;
+		if (triggerEvent == TRG_RISINGEDGE) {
+			setawdhighthres(threshold);
+			return;
+		} else if (triggerEvent == TRG_FALLINGEDGE) {
+			setawdlowthres(threshold);
+			return;
+		}
+	} // else TRG_TOGGLE
+
+	btriggered = true;
 	disable_awd(ADC1);
+
+	//once triggered count a waitDuration number of items before stopping
+	stopIndex = waitDuration;
 
 }
 
 
+
 void startADC(void) {
-	wait = false;
-	//bincz = false;
-	//digitalWrite(errorPin,(bLedOn?LOW:HIGH));
+	btriggered = false;
 
 	//setup the triggers using analog watch dog
 	initAWDtriggers();
@@ -357,12 +319,8 @@ void startADC(void) {
 	//reset the dma counters
 	resetDMA();
 
-	//once triggered count a waitDuration number of items before stopping
-	stopIndex = waitDuration;
-
 	//start timer 1 which triggers the ADC conversion
 	Timer1.refresh();
-	//Timer1.setCompare(1,Timer1.getOverflow());
 	Timer1.resume();
 
 }
@@ -374,31 +332,36 @@ void initAWDtriggers(void) {
 		adc_dma_disable(ADC1);
 		uint16_t data = adc_read(ADC1,ADC_CHANNEL);
 		adc_dma_enable(ADC1);
-		if (data < threshold) {
-			//rising edge trigger
-			set_awd_high_limit(ADC1,threshold);
-			set_awd_low_limit(ADC1,0);
-		} else {
-			//falling edge
-			set_awd_high_limit(ADC1,0x0fff);
-			set_awd_low_limit(ADC1,threshold);
-		}
+		if (data < threshold) //rising edge trigger
+			setawdhighthres(threshold);
+		else //falling edge
+			setawdlowthres(threshold);
+		bfirsttrig = true;
 	} else if (triggerEvent == TRG_FALLINGEDGE) {
-		set_awd_high_limit(ADC1,0x0fff);
-		set_awd_low_limit(ADC1,threshold);
+		setawdhighthres(threshold);
+		bfirsttrig = false;
 	} else { // TRG_RISINGEDGE
-		set_awd_high_limit(ADC1,threshold);
-		set_awd_low_limit(ADC1,0);
+		setawdlowthres(threshold);
+		bfirsttrig = false;
 	}
 	enable_awd(ADC1);
+}
+
+
+void setawdlowthres(uint16_t threshold) {
+	set_awd_high_limit(ADC1,0x0fff);
+	set_awd_low_limit(ADC1,threshold);
+}
+
+void setawdhighthres(uint16_t threshold) {
+	set_awd_high_limit(ADC1,threshold);
+	set_awd_low_limit(ADC1,0);
 }
 
 
 void stopADC(void) {
 	//stop timer 1 which triggers the ADC conversion
 	Timer1.pause();
-	//bincz = false;
-	//digitalWrite(errorPin,LEDOFF);
 }
 
 
@@ -451,8 +414,6 @@ void initADC(int8_t channel) {
 	ADC1->regs->SQR3 = channel & 0x1f;
 	initDMA();
 	adc_dma_enable(ADC1);
-	//setup end of conversion interrupt
-	//adc_attach_interrupt(ADC1, ADC_EOC, adcconvhandle);
 
 	//setup the analog watch dog
 	set_awd_high_limit(ADC1,0x0fff);
@@ -496,6 +457,7 @@ void initADC(int8_t channel) {
 void initDMA(void) {
 	dma_init(DMA1);
     //dma_attach_interrupt(DMA1, DMA_CH1, func);
+
 	uint32_t dmaflags = (DMA_MINC_MODE | DMA_CIRC_MODE );
 //			(DMA_MINC_MODE | DMA_CIRC_MODE | DMA_HALF_TRNS | DMA_TRNS_CMPLT);
     dma_setup_transfer(DMA1,
@@ -556,8 +518,6 @@ void initAdctimer(void) {
 #define UNOSYSCLK 16000000
 
 void setADCPrescaler( uint8_t prescaler ) {
-	dshow("# setADCPrescaler()");
-	dprint(Prescaler);
 	// These bits determine the division factor between the system clock
 	// frequency and the input clock to the ADC.
 	// prescaler: 2, 4, 8, 16, 32, 64, 128 (default)
@@ -605,8 +565,6 @@ void setSamprate(int samprate) {
 
 void setTriggerEvent( uint8_t TriggerEvent )
 {
-	dshow("# setTriggerEvent()");
-	dprint(event);
 	//	TriggerEvent:
 	//	0	Toggle
 	//	2	Falling edge
@@ -615,8 +573,6 @@ void setTriggerEvent( uint8_t TriggerEvent )
 }
 
 void setVoltageReference( uint8_t reference ) {
-	dshow("# setVoltageReference()");
-	dprint(reference);
 	// These bits select the voltage reference for the ADC. If these bits
 	// are changed during a conversion, the change will not go in effect
 	// until this conversion is complete (ADIF in ADCSRA is set). The
@@ -656,33 +612,25 @@ void error (void) {
 	digitalWrite( errorPin, LOW );
 }
 
-//-----------------------------------------------------------------------------
-// fillBuffer
-//-----------------------------------------------------------------------------
-// Fills the given buffer with bufferSize chars from a Serial object
 
-void fillBuffer( char *buffer, byte bufferSize, USBSerial *serial )
-{
-	// Clean buffer
-	memset( (void *)buffer, '\0', sizeof(char) * bufferSize );
+char* readParam( uint8_t length, uint8_t cwait) {
 
-	dprint(serial->available());
+	memset( (void *)Param, '\0', 5);
 
-	byte limit = ( bufferSize < serial->available() ) ? bufferSize : serial->available();
-
-	dprint(serial->available());
-	dprint(bufferSize);
-	dprint(limit);
-
-	// Fill buffer
-	for ( byte i = 0; i < limit; i++ ) {
-		dprint(serial->available());
-		dprint(i);
-		dprint(buffer);
-
-		buffer[i] = serial->read();
+	uint8_t i = 0;
+	while(cwait > 0 && i < length) {
+		while(Serial.available()) {
+			uint8_t c = Serial.read();
+			Param[i++] = c;
+		}
+		delay(1);
+		cwait--;
 	}
+
+	return Param;
+
 }
+
 
 void printStatus( void )
 {

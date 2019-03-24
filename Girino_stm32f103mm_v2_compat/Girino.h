@@ -38,11 +38,10 @@
 // PA0 ADC1 channel 0
 // take note of the pin map - see comments for initADC()
 #define ADC_CHANNEL		0
-#define thresholdPin	3
 
 #define BAUDRATE	115200	// Baud rate of UART in bps
-#define COMMANDDELAY	10	// ms to wait for the filling of Serial buffer
-#define COMBUFFERSIZE	3	// Size of buffer for incoming numbers
+#define CWAIT	10	// ms timeout waiting for parameter over serial
+#define PLEN	3	// length of the parameter
 
 // voltage translations stm to girino select only one of this
 // note girino maps the range to 0 to 255 - -2.5 to 2.5v, so 0v is around 128
@@ -56,14 +55,6 @@
 // translations so 255 ~ 2.5v (coarse, slow and possibly inaccurate)
 // but voltage scale looks 'correct' !
 //#define VTRANS7BIT3325
-
-#if DEBUG == 1
-	#define dprint(expression) Serial.print("# "); Serial.print( #expression ); Serial.print( ": " ); Serial.println( expression )
-	#define dshow(expression) Serial.println( expression )
-#else
-	#define dprint(expression) 
-	#define dshow(expression)
-#endif
 
 
 //-----------------------------------------------------------------------------
@@ -80,8 +71,6 @@ void initAWDtriggers(void);
 
 void startADC( void );
 void stopADC( void );
-void startAnalogComparator( void );
-void stopAnalogComparator( void );
 
 void setADCPrescaler( uint8_t prescaler );
 void setVoltageReference( uint8_t reference );
@@ -93,11 +82,7 @@ uint16_t vgirinotostm(uint8_t volt);
 
 
 void error (void);
-// Fills the given buffer with bufferSize chars from a Serial object
-void fillBuffer( \
-	char *buffer, \
-	byte bufferSize, \
-	USBSerial *serial = &Serial);
+char* readParam( uint8_t length, uint8_t cwait);
 void printStatus(void);
 void printData(void);
 
@@ -110,12 +95,12 @@ enum {
 //-----------------------------------------------------------------------------
 // Global Variables
 //-----------------------------------------------------------------------------
-extern volatile  boolean wait;
+extern volatile  boolean btriggered;
+extern volatile  boolean bframedone;
 extern          uint16_t waitDuration;
 extern volatile uint16_t stopIndex;
-extern volatile uint16_t ADCCounter;
 extern          uint16_t ADCBuffer[ADCBUFFERSIZE];
-extern volatile  boolean freeze;
+
 
 extern 			uint8_t errorPin;
 extern			boolean bLedOn;
@@ -126,6 +111,6 @@ extern           uint8_t prescaler;
 extern           uint8_t triggerEvent;
 extern           uint16_t threshold;
 
-extern              char commandBuffer[COMBUFFERSIZE+1];
+extern              char Param[5];
 
 
