@@ -43,8 +43,8 @@ patch PA1 to PA0 for a test signal
 
 - voltage scales  
    Girino maps the range to 0 to 255 - -2.5 to 2.5v, so 0v is around 128.    
-   STM32 ADC maps the range range 0 to 4096 - 0v to 3.3v. 
-   To change the voltage scale mapping on the menu select *Display > Change Signal Intepretation*
+   STM32 ADC maps the range 0 to 4096 - 0v to 3.3v. 
+   To change the voltage scale mapping, on the menu select *Display > Change Signal Intepretation*
 
 ![screen print](v_intep.png "voltage intepretation")
 
@@ -94,7 +94,10 @@ patch PA1 to PA0 for a test signal
 ### Author and credits 
 
   This port is brought to you by Andrew Goh.
-  The author would like to credit and thank the stm32duino libmaple core (that this is based on) community (Roger, Stevstrong, Victorpv, Ahull, and many many others), [leaflabs](https://www.leaflabs.com/maple) which started the initial libmaple core and created the maple mini.  
+  The author would like to credit and thank the stm32duino libmaple core (that this is based on) 
+  community (Roger, Stevstrong, Victorpv, Ahull, Ray, arpruss, Vassilis, madias, Pito and
+  many many others), [leaflabs](https://www.leaflabs.com/maple) which started the initial 
+  libmaple core and created the maple mini.  
   [Girinoscope java app github](https://github.com/Chatanga/Girinoscope)  
   [Girino instructable](https://www.instructables.com/id/Girino-Fast-Arduino-Oscilloscope/)    
   and last but not least stm32 is a pretty cool mcu ;)  
