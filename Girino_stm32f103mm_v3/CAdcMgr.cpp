@@ -5,6 +5,7 @@
 // implementation nearly completely re-written
 // different from original release and specifically taylored
 // to stm32f103c{8,b} hardware, only the protocol is left intact
+//
 // Copyright 2019 Andrew Goh
 //
 // Original:
@@ -37,7 +38,6 @@
 // ADC and DMA buffers
 //-----------------------------------------------------------------------------
 uint16_t ADCBuffer[ADCBUFFERSIZE];
-uint16_t CirBuffer[CIRLEN];
 
 //-----------------------------------------------------------------------------
 // global variables
@@ -49,11 +49,9 @@ CAdcMgr *CAdcMgr::s_me = NULL;
 CAdcMgr::CAdcMgr() {
 	m_channel = ADC_CHANNEL;
 	m_adcops = AdcOps::Range500;
-	waitDuration = BufferSize - 32;
+	m_samplecounts = BufferSize - 32;
 	triggerEvent = TRG_TOGGLE;
 	threshold = vgirinotostm(127);
-	stopIndex = -1;
-	cirindex = 0;
 
 	s_me = this;
 }
@@ -76,10 +74,6 @@ void CAdcMgr::startConv() {
 	//setup the triggers using analog watch dog
 	initAWDtriggers();
 
-	//setup dma to use circular buffer
-	//initDMA(CIRLEN,1,true);
-	//adc_dma_enable(ADC1);
-	cirindex = 0;
 	//disable dma during the initial triggering phase
 	adc_dma_disable(ADC1);
 
@@ -87,7 +81,7 @@ void CAdcMgr::startConv() {
 	if(m_adcops == AdcOps::Fixed600 ||
 	   m_adcops == AdcOps::Fixed857) {
 		//setup dma
-		initDMA(waitDuration,1,false);
+		initDMA(m_samplecounts,1);
 
 		// set adc in continuous mode,
 		adc_cont_enable(ADC1);
@@ -96,20 +90,20 @@ void CAdcMgr::startConv() {
 
 	} else if (m_adcops == AdcOps::Fixed1714 ||
 			m_adcops == AdcOps::Fixed1285 ) {
+		//ADC1,ADC2 dual fast interleave mode
 		adc_enable(ADC2);
 		//setup dma
-		initDMA(waitDuration/2,2,false);
+		initDMA(m_samplecounts/2,2);
 
 		// set adc in continuous mode,
 		adc_cont_enable(ADC1);
 		adc_cont_enable(ADC2);
 		//start conversion
 		ADC1->regs->CR2 |= ADC_CR2_SWSTART;
-		digitalWrite(14,0);
 
 	} else { //AdcOps::Range500
 		//setup dma
-		initDMA(waitDuration,1,false);
+		initDMA(m_samplecounts,1);
 
 		//start timer 1 which triggers the ADC conversion
 		Timer1.refresh();
@@ -163,13 +157,7 @@ void CAdcMgr::triggered() {
 	//disable analog watch dog
 	disable_awd(ADC1);
 
-	//adc_dma_disable(ADC1);
-	//save the cirindex
-	//cirindex = CIRLEN - dma_get_count(DMA1, DMA_CH1);
-	//swap the dma buffer to non-circular buffer
-	//initDMA(waitDuration,1,false);
-
-	//start adc dma recording again
+	//start adc dma recording
 	adc_dma_enable(ADC1);
 }
 
@@ -204,35 +192,16 @@ void CAdcMgr::doframedone(void) {
 
 
 void CAdcMgr::printData(void) {
-	uint16_t *buffer = CirBuffer;
-	int offset = cirindex;
-	int size = BufferSize - waitDuration;
-	if(size >= CIRLEN) {
-		//pad with zeros
-		for(int i=0; i< size - CIRLEN ; i++) {
-			Serial.write((uint8_t) 0);
-		}
-		for(int i=0; i<CIRLEN; i++) {
-			uint16_t o = (offset + i) % CIRLEN;
-			Serial.write(vstmtogirino(*(buffer + o)));
-		}
-		/*
-		for(int i=offset; i<size ; i++) {
-			Serial.write(vstmtogirino(*(buffer + i)));
-		}
-		for(int i=0; i<offset; i++) {
-			Serial.write(vstmtogirino(*(buffer + i)));
-		}*/
-	} else {
-		offset = (offset + CIRLEN - size) % CIRLEN;
-		for(int i=0; i<size; i++) {
-			uint16_t o = (offset + i) % CIRLEN;
-			Serial.write(vstmtogirino(*(buffer + o)));
-		}
+	uint16_t *buffer = ADCBuffer;
+	int blanksize = BufferSize - m_samplecounts;
+
+	//pad with zeros
+	for(int i=0; i< blanksize ; i++) {
+		Serial.write((uint8_t) 0);
 	}
 
 	buffer = ADCBuffer;
-	for(int i=0; i<waitDuration ; i++) {
+	for(int i=0; i<m_samplecounts ; i++) {
 		Serial.write(vstmtogirino(*(buffer + i)));
 	}
 
@@ -304,17 +273,18 @@ void CAdcMgr::setops(AdcOps ops) {
 			  adc_set_prescaler(ADC_PRE_PCLK2_DIV_8);
 		  }
 
+		  //note that continuous mode for both ADC1 and ADC2
+		  //needs to be set at acquisition start
 		  adc_set_sample_rate(ADC1, ADC_SMPR_1_5);
 		  adc_set_sample_rate(ADC2, ADC_SMPR_1_5);
 
 		  adc_set_reg_seqlen(ADC1, 1);
-		  ADC1->regs->CR2 |= ADC_CR2_CONT;
 		  ADC1->regs->SQR3 = m_channel;
 
 		  adc_set_reg_seqlen(ADC2, 1);
-		  ADC2->regs->CR2 |= ADC_CR2_CONT; // ADC 2 continuos
 		  ADC2->regs->SQR3 = m_channel;
 		  adc_set_dual(ADC1,ADC_DUAL_FASTINT); // fast interleave mode
+
 
 		  m_adcops = ops;
 
@@ -357,7 +327,7 @@ void CAdcMgr::setops(AdcOps ops) {
 }
 
 
-void CAdcMgr::initDMA(uint16_t dmacount, uint8_t words, boolean bcirc) {
+void CAdcMgr::initDMA(uint16_t dmacount, uint8_t words) {
 	dma_xfer_size xfer_size;
 	uint32_t dmaflags;
     volatile void *memory_address;
@@ -371,15 +341,9 @@ void CAdcMgr::initDMA(uint16_t dmacount, uint8_t words, boolean bcirc) {
 		xfer_size = DMA_SIZE_16BITS;
 	}
 
-	if(bcirc) {
-		//circular mode no interrupt handlers
-		dmaflags = (DMA_MINC_MODE | DMA_CIRC_MODE );
-		memory_address = CirBuffer;
-	} else {
-		//single mode, enable the transfer complete interrupt handler
-		dmaflags = (DMA_MINC_MODE | DMA_TRNS_CMPLT);
-		memory_address = ADCBuffer;
-	}
+	//single mode, enable the transfer complete interrupt handler
+	dmaflags = (DMA_MINC_MODE | DMA_TRNS_CMPLT);
+	memory_address = ADCBuffer;
 //		(DMA_MINC_MODE | DMA_CIRC_MODE | DMA_HALF_TRNS | DMA_TRNS_CMPLT);
 
     dma_setup_transfer(DMA1,
@@ -395,17 +359,8 @@ void CAdcMgr::initDMA(uint16_t dmacount, uint8_t words, boolean bcirc) {
 }
 
 
-//reset the dma counters
-void CAdcMgr::resetDMA(uint16_t dmasize) {
-	dma_disable(DMA1,DMA_CH1);
-	dma_clear_isr_bits(DMA1,DMA_CH1);
-	dma_set_num_transfers(DMA1,DMA_CH1, dmasize);
-	dma_enable(DMA1,DMA_CH1);
-}
-
 void CAdcMgr::clearBuf(void) {
 	memset( (void *)ADCBuffer, 0, sizeof(ADCBuffer) );
-	memset( (void *)CirBuffer, 0, sizeof(CirBuffer) );
 }
 
 
@@ -530,7 +485,7 @@ void CAdcMgr::setSamprate(int samplerate) {
 }
 
 void CAdcMgr::setWaitDur(uint16_t waitdur) {
-	waitDuration = waitdur < BufferSize ? waitdur : BufferSize;
+	m_samplecounts = waitdur < BufferSize ? waitdur : BufferSize;
 }
 
 //	TriggerEvent:

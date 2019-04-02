@@ -322,7 +322,7 @@ void printStatus( void )
 	Serial.print("Trigger event: ");
 	Serial.println(AdcMgr.triggerEvent);
 	Serial.print("Wait duration: ");
-	Serial.println(AdcMgr.waitDuration);
+	Serial.println(AdcMgr.m_samplecounts);
 	Serial.print("Threshold: ");
 	Serial.println(vstmtogirino(AdcMgr.threshold));
 }

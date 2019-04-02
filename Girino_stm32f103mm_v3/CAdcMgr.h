@@ -5,6 +5,7 @@
 // implementation nearly completely re-written
 // different from original release and specifically taylored
 // to stm32f103c{8,b} hardware, only the protocol is left intact
+//
 // Copyright 2019 Andrew Goh
 //
 // Original:
@@ -32,13 +33,12 @@
 #define ADCMGR_H_
 #include "Girino.h"
 
+
 //-----------------------------------------------------------------------------
 // ADC and DMA buffers
 //-----------------------------------------------------------------------------
 extern uint16_t ADCBuffer[ADCBUFFERSIZE];
 
-#define CIRLEN 64
-extern uint16_t CirBuffer[CIRLEN];
 
 //-----------------------------------------------------------------------------
 // global variables
@@ -63,9 +63,7 @@ public:
 	uint8_t triggerEvent;
 	uint16_t threshold;
 	uint8_t m_channel;
-	uint16_t cirindex;
-	uint16_t waitDuration;
-	uint16_t stopIndex;
+	uint16_t m_samplecounts;
 
 	CAdcMgr();
 	virtual ~CAdcMgr();
@@ -87,8 +85,7 @@ public:
 
 	void initADC(int8_t channel);
 	void setops(AdcOps ops);
-	void initDMA(uint16_t dmacount, uint8_t words, boolean bcirc);
-	void resetDMA(uint16_t dmasize);
+	void initDMA(uint16_t dmacount, uint8_t words);
 	void clearBuf(void);
 	void initAdctimer(void);
 	void configADCpin(int8_t channel);
