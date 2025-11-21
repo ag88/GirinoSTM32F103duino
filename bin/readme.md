@@ -23,7 +23,7 @@ if one insist on DFU and using dfu-util, there is a 'button dance'
 - connect usb (phone) cable 
 - press both boot0 and reset
 - hold boot0, release reset 
-- release reset 2 sec later
+- release boot0 2 sec later
 
 that should put the board in DFU mode, the firmware can be installed over the DFU cable
 and the command is like
