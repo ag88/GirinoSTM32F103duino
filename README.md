@@ -2,6 +2,12 @@
 
 This is a port of Girino arduino implementation to STM32duino (libmaple core) for stm32f103 maple mini or blue pill
 
+## Updates
+
+- Added binaries and source for [WeAct STM32F401 black pill](https://github.com/WeActStudio/WeActStudio.MiniSTM32F4x1)
+- There is a brand new Gui here:
+  https://github.com/ag88/STM32JDAQScope
+
 ### References / credits
 - [Girino instructable](https://www.instructables.com/id/Girino-Fast-Arduino-Oscilloscope/) 
 - [Girinoscope java app github](https://github.com/Chatanga/Girinoscope)
