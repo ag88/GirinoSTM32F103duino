@@ -7,7 +7,7 @@ This is a port of Girino arduino implementation to STM32duino (libmaple core) fo
 
 - Added binaries and source for [WeAct STM32F401 black pill](https://github.com/WeActStudio/WeActStudio.MiniSTM32F4x1)
 - There is a brand new Gui here:
-  https://github.com/ag88/STM32JDAQScope
+  https://github.com/ag88/STM32JDAQScope  
   ^ If you use the stm32f401 binary and the stm32f401 black pill board, use this Gui instead
 
 ### References / credits
