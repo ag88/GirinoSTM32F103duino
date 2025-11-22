@@ -1,6 +1,7 @@
-## Girino ported to STM32duino (libmaple core) stm32f103 maple mini or blue pill
+## Girino ported to STM32duino (libmaple core) stm32f103 maple mini or blue pill (and stm32f401/f411 black pill)
 
-This is a port of Girino arduino implementation to STM32duino (libmaple core) for stm32f103 maple mini or blue pill
+This is a port of Girino arduino implementation to STM32duino (libmaple core) for stm32f103 maple mini or blue pill, 
+(and stm32f401/f411 black pill)
 
 ## Updates
 
